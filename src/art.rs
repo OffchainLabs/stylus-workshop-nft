@@ -4,7 +4,7 @@
 
 use crate::utils::Color;
 use alloc::{vec, vec::Vec};
-use alloy_primitives::U256;
+use stylus_sdk::alloy_primitives::U256;
 
 struct Image {
     pixels: Vec<Vec<Color>>,

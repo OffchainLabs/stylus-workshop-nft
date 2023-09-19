@@ -15,10 +15,9 @@ mod utils;
 
 use crate::{erc712::Erc712, utils::make_png};
 use alloc::string::String;
-use alloy_primitives::U256;
 use base64::Engine;
 use erc712::Erc712Params;
-use stylus_sdk::prelude::*;
+use stylus_sdk::{alloy_primitives::U256, prelude::*};
 
 /// Initializes a custom, global allocator for Rust programs compiled to WASM.
 #[global_allocator]
