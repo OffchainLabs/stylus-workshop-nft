@@ -1,3 +1,7 @@
+//
+// Stylus workshop NFT
+//
+
 use crate::utils::Color;
 use alloc::{vec, vec::Vec};
 use alloy_primitives::U256;
@@ -16,7 +20,7 @@ impl Image {
 
     fn draw_line(start: (usize, usize), end: (usize, usize), color: Color) {
         todo!("implement a line drawing algorithm")
-	}
+    }
 }
 
 /// Generates the image for a given NFT token ID

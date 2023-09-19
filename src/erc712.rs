@@ -1,8 +1,12 @@
+//
+// Stylus workshop NFT
+//
+
 use alloc::{string::String, vec, vec::Vec};
 use alloy_primitives::{Address, U256};
 use alloy_sol_types::{sol, SolError};
 use core::{borrow::BorrowMut, marker::PhantomData};
-use stylus_sdk::{abi::Bytes, evm::log, msg, prelude::*};
+use stylus_sdk::{abi::Bytes, evm, msg, prelude::*};
 
 pub trait Erc712Params {
     const NAME: &'static str;
@@ -48,15 +52,15 @@ impl From<stylus_sdk::call::Error> for NftError {
     }
 }
 
-impl Into<Vec<u8>> for NftError {
-    fn into(self) -> Vec<u8> {
-        match self {
-            Self::InvalidTokenId(err) => err.encode(),
-            Self::NotOwner(err) => err.encode(),
-            Self::NotApproved(err) => err.encode(),
-            Self::TransferToZero(err) => err.encode(),
-            Self::ReceiverRefused(err) => err.encode(),
-            Self::ExternalCall(err) => err.into(),
+impl From<NftError> for Vec<u8> {
+    fn from(val: NftError) -> Self {
+        match val {
+            NftError::InvalidTokenId(err) => err.encode(),
+            NftError::NotOwner(err) => err.encode(),
+            NftError::NotApproved(err) => err.encode(),
+            NftError::TransferToZero(err) => err.encode(),
+            NftError::ReceiverRefused(err) => err.encode(),
+            NftError::ExternalCall(err) => err.into(),
         }
     }
 }
@@ -66,7 +70,7 @@ type Result<T, E = NftError> = core::result::Result<T, E>;
 impl<T: Erc712Params> Erc712<T> {
     /// Requires that msg::sender() is authorized to spend a given token
     fn require_authorized_to_spend(&self, from: Address, token_id: U256) -> Result<()> {
-        let owner = self.owners.get(token_id);
+        let owner = self.owner_of(token_id)?;
         if from != owner {
             return Err(NftError::NotOwner(NotOwner {
                 from,
@@ -74,9 +78,7 @@ impl<T: Erc712Params> Erc712<T> {
                 real_owner: owner,
             }));
         }
-        if owner == Address::default() {
-            return Err(NftError::InvalidTokenId(InvalidTokenId { token_id }));
-        }
+
         if msg::sender() == owner {
             return Ok(());
         }
@@ -107,15 +109,15 @@ impl<T: Erc712Params> Erc712<T> {
             }));
         }
         owner.set(to);
-        self.approved.setter(token_id).set(Address::default());
-        log(Transfer { from, to, token_id });
+
+        self.approved.delete(token_id);
+        evm::log(Transfer { from, to, token_id });
         Ok(())
     }
 }
 
 sol_interface! {
     interface IERC721TokenReceiver {
-        // TODO: this should be a bytes4 return value but sol_interface! seems broken there
         function onERC721Received(address operator, address from, uint256 token_id, bytes data) external returns(bytes4);
     }
 }
@@ -131,9 +133,7 @@ impl<T: Erc712Params> Erc712<T> {
     }
 
     pub fn token_uri(&self, token_id: U256) -> Result<String> {
-        if self.owners.get(token_id) == Address::default() {
-            return Err(NftError::InvalidTokenId(InvalidTokenId { token_id }));
-        }
+        self.owner_of(token_id)?; // require NFT exist
         Ok(T::token_uri(token_id))
     }
 
@@ -142,11 +142,12 @@ impl<T: Erc712Params> Erc712<T> {
             // special cased in the ERC165 standard
             return Ok(false);
         }
+
+        // TODO: IERC721Enumerable, which has selector 0x780e9d63
         Ok(matches!(
             u32::from_be_bytes(interface),
             0x01ffc9a7 | // IERC165
-            0x80ac58cd | // IERC721
-            0x780e9d63 // IERC721Enumerable -- TODO
+            0x80ac58cd // IERC721
         ))
     }
 
@@ -154,9 +155,10 @@ impl<T: Erc712Params> Erc712<T> {
         Ok(U256::from(self.balance.get(owner)))
     }
 
+    /// Gets the owner of the NFT, if it exists
     pub fn owner_of(&self, token_id: U256) -> Result<Address> {
         let owner = self.owners.get(token_id);
-        if owner == Address::default() {
+        if owner.is_zero() {
             return Err(NftError::InvalidTokenId(InvalidTokenId { token_id }));
         }
         Ok(owner)
@@ -170,20 +172,22 @@ impl<T: Erc712Params> Erc712<T> {
         token_id: U256,
         data: Bytes,
     ) -> Result<()> {
-        if to == Address::default() {
+        if to.is_zero() {
             return Err(NftError::TransferToZero(TransferToZero { token_id }));
         }
         storage
             .borrow_mut()
             .require_authorized_to_spend(from, token_id)?;
+
         if to.has_code() {
             let receiver = IERC721TokenReceiver::new(to);
             let received = receiver
                 .on_erc_721_received(&mut *storage, msg::sender(), from, token_id, data.0)?
                 .0;
+
             if u32::from_be_bytes(received) != 0x150b7a02 {
                 return Err(NftError::ReceiverRefused(ReceiverRefused {
-                    receiver: to,
+                    receiver: receiver.address,
                     token_id,
                     returned: received,
                 }));
@@ -199,11 +203,11 @@ impl<T: Erc712Params> Erc712<T> {
         to: Address,
         token_id: U256,
     ) -> Result<()> {
-        Self::safe_transfer_from_with_data(storage, from, to, token_id, Bytes(Vec::new()))
+        Self::safe_transfer_from_with_data(storage, from, to, token_id, Bytes(vec![]))
     }
 
     pub fn transfer_from(&mut self, from: Address, to: Address, token_id: U256) -> Result<()> {
-        if to == Address::default() {
+        if to.is_zero() {
             return Err(NftError::TransferToZero(TransferToZero { token_id }));
         }
         self.require_authorized_to_spend(from, token_id)?;
@@ -213,20 +217,21 @@ impl<T: Erc712Params> Erc712<T> {
 
     pub fn approve(&mut self, approved: Address, token_id: U256) -> Result<()> {
         let owner = self.owners.get(token_id);
-        if owner == Address::default() {
+        if owner.is_zero() {
             return Err(NftError::InvalidTokenId(InvalidTokenId { token_id }));
         }
-        if msg::sender() != owner {
-            if !self.approved_for_all.getter(owner).get(msg::sender()) {
-                return Err(NftError::NotApproved(NotApproved {
-                    owner,
-                    spender: msg::sender(),
-                    token_id,
-                }));
-            }
+
+        // require authorization
+        if msg::sender() != owner && !self.approved_for_all.getter(owner).get(msg::sender()) {
+            return Err(NftError::NotApproved(NotApproved {
+                owner,
+                spender: msg::sender(),
+                token_id,
+            }));
         }
-        self.approved.setter(token_id).set(approved);
-        log(Approval {
+        self.approved.insert(token_id, approved);
+
+        evm::log(Approval {
             approved,
             owner,
             token_id,
@@ -238,9 +243,9 @@ impl<T: Erc712Params> Erc712<T> {
         let owner = msg::sender();
         self.approved_for_all
             .setter(owner)
-            .setter(operator)
-            .set(approved);
-        log(ApprovalForAll {
+            .insert(operator, approved);
+
+        evm::log(ApprovalForAll {
             owner,
             operator,
             approved,

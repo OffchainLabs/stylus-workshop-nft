@@ -1,3 +1,7 @@
+//
+// Stylus workshop NFT
+//
+
 //! Warning: this code is a template only and has not been audited.
 
 // Only run this as a WASM if the export-abi feature is not set.
