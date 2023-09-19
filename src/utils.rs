@@ -1,5 +1,9 @@
-use alloc::{vec, vec::Vec};
+//! Utilities.
+
+use alloc::{boxed::Box, vec, vec::Vec};
 use hex_literal::hex;
+
+use crate::art::Image;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Color {
@@ -8,8 +12,12 @@ pub struct Color {
     pub blue: u8,
 }
 
-/// Doesn't actually compress, just changes formats
-/// Equivalent to zlib compression level 0
+/// A grid of pixels `R` rows by `C` columns.
+pub type Pixels<const R: usize, const C: usize> = Box<[[Color; C]; R]>;
+
+/// Doesn't actually compress, just changes formats.
+///
+/// Equivalent to zlib compression level 0.
 pub fn zlib_format(mut data: &[u8]) -> Vec<u8> {
     if data.is_empty() {
         return hex!("789c030000000001").to_vec();
@@ -38,53 +46,53 @@ pub fn zlib_format(mut data: &[u8]) -> Vec<u8> {
     out
 }
 
-fn uncompressed_pixel_data(pixels: Vec<Vec<Color>>) -> Vec<u8> {
-    let height = pixels.len();
-    let width = pixels.get(0).map(|row| row.len()).unwrap_or_default();
-    let mut out = Vec::with_capacity(height * (1 + width * 3));
-    for row in pixels {
-        out.push(0); // Filter type: none
-        for pixel in row {
-            out.push(pixel.red);
-            out.push(pixel.green);
-            out.push(pixel.blue);
+impl<const R: usize, const C: usize> Image<R, C> {
+    fn uncompressed_pixel_data(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(R * (1 + C * 3));
+        for row in &*self.pixels {
+            out.push(0); // Filter type: none
+            for pixel in row {
+                out.push(pixel.red);
+                out.push(pixel.green);
+                out.push(pixel.blue);
+            }
         }
+        out
     }
-    out
-}
 
-pub fn make_png(pixels: Vec<Vec<Color>>) -> Vec<u8> {
-    let height = pixels.len();
-    let width = pixels.get(0).map(|row| row.len()).unwrap_or_default();
-    let idat = zlib_format(&uncompressed_pixel_data(pixels));
-    let mut out = Vec::new();
-    out.extend(hex!("89504E470D0A1A0A")); // PNG signature
-    let mut append_chunk = |name: &[u8; 4], chunk: &[u8]| {
-        out.extend((chunk.len() as u32).to_be_bytes());
-        let start = out.len();
-        out.extend(name);
-        out.extend(chunk);
-        let crc = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
-        out.extend(crc.checksum(&out[start..]).to_be_bytes());
-    };
-    let mut ihdr = Vec::new();
-    ihdr.extend((width as u32).to_be_bytes());
-    ihdr.extend((height as u32).to_be_bytes());
-    ihdr.push(8); // bit depth
-    ihdr.push(2); // colour type: truecolour
-    ihdr.push(0); // compression: deflate
-    ihdr.push(0); // filter method: adapative
-    ihdr.push(0); // interlace: no interlace
-    append_chunk(b"IHDR", &ihdr);
-    drop(ihdr);
-    append_chunk(b"IDAT", &idat);
-    append_chunk(b"IEND", &[]);
-    out
+    pub fn make_png(&self) -> Vec<u8> {
+        let idat = zlib_format(&self.uncompressed_pixel_data());
+        let mut out = Vec::new();
+        out.extend(hex!("89504E470D0A1A0A")); // PNG signature
+        let mut append_chunk = |name: &[u8; 4], chunk: &[u8]| {
+            out.extend((chunk.len() as u32).to_be_bytes());
+            let start = out.len();
+            out.extend(name);
+            out.extend(chunk);
+            let crc = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
+            out.extend(crc.checksum(&out[start..]).to_be_bytes());
+        };
+        let mut ihdr = Vec::new();
+        ihdr.extend((C as u32).to_be_bytes());
+        ihdr.extend((R as u32).to_be_bytes());
+        ihdr.push(8); // bit depth
+        ihdr.push(2); // colour type: truecolour
+        ihdr.push(0); // compression: deflate
+        ihdr.push(0); // filter method: adapative
+        ihdr.push(0); // interlace: no interlace
+        append_chunk(b"IHDR", &ihdr);
+        drop(ihdr);
+        append_chunk(b"IDAT", &idat);
+        append_chunk(b"IEND", &[]);
+        out
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{make_png, zlib_format, Color};
+    use crate::art::Image;
+
+    use super::{zlib_format, Color};
     use std::io::Read;
 
     #[test]
@@ -102,18 +110,14 @@ mod tests {
 
     #[test]
     fn test_png() {
-        let pixels = vec![
-            vec![
-                Color {
-                    red: 1,
-                    green: 0,
-                    blue: 2,
-                };
-                128
-            ];
-            128
-        ];
-        let encoded = make_png(pixels);
+        let color = Color {
+            red: 1,
+            green: 0,
+            blue: 2,
+        };
+        let image: Image<128, 128> = Image::new(color);
+
+        let encoded = image.make_png();
         let decoder = png::Decoder::new(std::io::Cursor::new(encoded));
         let mut data_reader = decoder.read_info().expect("Failed to read PNG info");
         while data_reader

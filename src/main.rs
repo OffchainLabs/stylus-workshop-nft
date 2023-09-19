@@ -13,7 +13,7 @@ mod art;
 mod erc712;
 mod utils;
 
-use crate::{erc712::Erc712, utils::make_png};
+use crate::erc712::Erc712;
 use alloc::string::String;
 use base64::Engine;
 use erc712::Erc712Params;
@@ -30,8 +30,8 @@ impl Erc712Params for StylusWorkshopParams {
     const SYMBOL: &'static str = "SNFT";
 
     fn token_uri(token_id: U256) -> String {
-        let pixels = art::generate_nft(token_id);
-        let png = make_png(pixels);
+        let image = art::generate_nft(token_id);
+        let png = image.make_png();
         let mut out = String::from("data:image/png;base64,");
         base64::engine::general_purpose::STANDARD.encode_string(&png, &mut out);
         out
