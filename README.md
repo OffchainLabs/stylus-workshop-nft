@@ -8,7 +8,7 @@ Though this code has **not** been audited, these NFTs may be listed on platforms
 
 In order to build and deploy your NFT, we'll need a few things.
 
-#### [Rust][rust]
+### [Rust][rust]
 
 The compiler, along with the build tool `cargo` can be installed [here][rust].
 
@@ -19,7 +19,7 @@ rustup upgrade
 rustup target add wasm32-unknown-unknown
 ```
 
-#### The [Stylus CLI Tool][cli]
+### The [Stylus CLI Tool][cli]
 
 The following installs `cargo stylus`, the standard tool for deploying Stylus contracts.
 
@@ -27,7 +27,7 @@ The following installs `cargo stylus`, the standard tool for deploying Stylus co
 cargo install --force cargo-stylus
 ```
 
-#### [Stylus Testnet Ether][eth]
+### [Stylus Testnet Ether][eth]
 
 You'll need testnet eth to pay for gas, which you can get from [this faucet][eth].
 
@@ -50,12 +50,13 @@ cd stylus-workshop-nft
 
 You'll notice the following source files in the `src/` directory. Each has a purpose, and relevent documentation within each file.
 
-| File                       | Info                                       |
-|:---------------------------|:-------------------------------------------|
-| [`erc721.rs`][erc721.rs]   | Implements the [ERC-721 standard][erc721]. |
-| [`main.rs`](src/main.rs)   | Defines the entrypoint.                    |
-| [`utils.rs`](src/utils.rs) | Utilities for generating onchain pngs.     |
-| [`art.rs`][art.rs]         | **Where to draw your NFT 😄**              |
+| File                               | Info                                       |
+|:-----------------------------------|:-------------------------------------------|
+| [`erc721.rs`][erc721.rs]           | Implements the [ERC-721 standard][erc721]. |
+| [`main.rs`](src/main.rs)           | Defines the entrypoint.                    |
+| [`utils.rs`](src/utils.rs)         | Utilities for generating onchain pngs.     |
+| [`print_art.rs`](src/print_art.rs) | Prints your NFT to the console 👀          |
+| [`art.rs`][art.rs]                 | **Where to draw your NFT 😄**              |
 
 For today's workshop, two files are of interest: [`erc721`][erc721.rs], which provides an implementation of the [ERC-721 standard][erc721], and [`art`][art.rs], where'll you can draw your NFT!
 
@@ -64,14 +65,25 @@ If your a Solidity expert and familiar with the 721 standard, you may find [erc7
 It's time to make some art though, so we'll turn our focus to [`art.rs`][art.rs]. There you'll see a method named `generate_nft` at the bottom.
 
 ```rs
-pub fn generate_nft(token_id: U256) -> Image<256, 256> {
-    let bg_color = Color::from_hex(0xe3066e); // stylus pink!
-    let mut image = Image::new(bg_color);
-    
-    // draw the image
-    image.draw_line();
-    image.draw_elipse();
+pub fn generate_nft(address: Address, token_id: U256) -> Image<32, 32> {
+    let mut hasher = FnvHasher::new();
+    hasher.update(token_id.as_le_slice());
+    hasher.update(address.as_slice());
+    let mut rng = Rng::with_seed(hasher.output());
 
+    let bg_color = Color::from_hex(0xe3066e);
+    let fg_color = Color {
+        red: rng.u8(..),
+        green: rng.u8(..),
+        blue: rng.u8(..),
+    };
+
+    let mut image = Image::new(bg_color);
+
+    image.draw_gradient(Color::from_hex(0xff0000), Color::from_hex(0x0000ff));
+    image.draw_line(Cell::new(4, 4), Cell::new(4, 6), fg_color);
+    image.draw_line(Cell::new(10, 4), Cell::new(10, 6), fg_color);
+    image.draw_ellipse(Cell::new(7, 9), 3, 3, [false, false, true, true], fg_color);
     image
 }
 ```
@@ -84,7 +96,7 @@ You can modify the above in various ways.
 - The return result is a 32x32 grid. You can change the dimensions by editing the `-> Image<32, 32>` part.
 - The `token_id` is unique to each NFT. You should condition what you draw based on it.
 
-In Stylus, execution is 10-100x cheaper. The drawing methods can do large amounts of work with negligible fees. As a consequence, Stylus NFTs can be highly generative and entirely onchain. In fact, the contract in this repo can even produce PNGs and terminal images on the fly without having to include any offchain data.
+In Stylus, execution is 10-100x cheaper. The drawing methods can do large amounts of work with negligible fees. As a consequence, Stylus NFTs can be highly generative and entirely onchain. In fact, the contract in this repo can even produce PNGs and terminal images on the fly without having to include any offchain data. Try it out!
 
 ```sh
 cargo test print_art -- --nocapture
@@ -97,13 +109,13 @@ cargo test print_art -- --nocapture
 You can check the readiness of your NFT as follows.
 
 ```sh
-cargo stylus check
+cargo stylus check --nightly
 ```
 
 If everything checks out, you're ready to deploy!
 
 ```sh
-cargo stylus deploy --private-key 0x<your private key>
+cargo stylus deploy --nightly --private-key 0x<your private key>
 ```
 
 Note that it's generally better to use `--private-key-path` for security reasons.
