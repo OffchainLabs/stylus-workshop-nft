@@ -14,6 +14,7 @@ fn print_art() {
     let mut address = Address::default();
     rng.fill(&mut address.0 .0);
     let id = rng.gen_range(0_u64..1000);
+
     println!("Generating NFT 0x{} ID {id}:", hex::encode(address));
     let image = art::generate_nft(address, U256::from(id));
     for row_idx in (0..image.pixels.len()).step_by(2) {

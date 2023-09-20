@@ -20,6 +20,10 @@ impl Color {
             blue: value as u8,
         }
     }
+
+    pub const fn to_hex(&self) -> usize {
+        (self.red as usize) << 16 | (self.green as usize) << 8 | self.blue as usize
+    }
 }
 
 /// A grid of pixels `R` rows by `C` columns.

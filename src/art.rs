@@ -137,6 +137,23 @@ impl<const R: usize, const C: usize> Image<R, C> {
             }
         }
     }
+
+    /// Draws a line from `start` to `end` with the given `color`
+    pub fn draw_gradient(&mut self, start: Color, end: Color) {
+        for x in 0..C {
+            for y in 0..R {
+                let blend = 100 * (x + y) / (C + R);
+                let lerp = |x, y| ((x as usize * blend + y as usize * (100 - blend)) / 100) as u8;
+
+                let color = Color {
+                    red: lerp(start.red, end.red),
+                    green: lerp(start.green, end.green),
+                    blue: lerp(start.blue, end.blue),
+                };
+                self.pixels[y][x] = color;
+            }
+        }
+    }
 }
 
 /// Generates the image for a given NFT token ID
@@ -156,6 +173,9 @@ pub fn generate_nft(this_address: Address, token_id: U256) -> Image<32, 32> {
     };
 
     let mut image = Image::new(bg_color);
+
+    image.draw_gradient(Color::from_hex(0xff0000), Color::from_hex(0x0000ff));
+
     image.draw_line(Cell::new(4, 4), Cell::new(4, 6), fg_color);
     image.draw_line(Cell::new(10, 4), Cell::new(10, 6), fg_color);
     image.draw_ellipse(Cell::new(7, 9), 3, 3, [false, false, true, true], fg_color);

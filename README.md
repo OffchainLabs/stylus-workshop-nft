@@ -81,13 +81,13 @@ The above takes in a sequential `token_id`, which you can use to seed your NFT, 
 You can modify the above in various ways.
 
 - Change or add call methods to draw different shapes.
-- The return result is a 16x16 grid. You can change the dimensions by editing the `-> Image<16, 16>` part.
+- The return result is a 32x32 grid. You can change the dimensions by editing the `-> Image<32, 32>` part.
 - The `token_id` is unique to each NFT. You should condition what you draw based on it.
 
 In Stylus, execution is 10-100x cheaper. The drawing methods can do large amounts of work with negligible fees. As a consequence, Stylus NFTs can be highly generative and entirely onchain. In fact, the contract in this repo can even produce PNGs and terminal images on the fly without having to include any offchain data.
 
 ```sh
-$ cargo test -- --nocapture
+$ cargo test print_art -- --nocapture
 
 
 ```
