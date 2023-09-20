@@ -167,7 +167,7 @@ pub fn generate_nft(this_address: Address, token_id: U256) -> Image<32, 32> {
 
     let bg_color = Color::from_hex(0xe3066e);
     let fg_color = Color {
-        red: rng.u8(..80), // don't generate something too red or it'll blend in
+        red: rng.u8(..),
         green: rng.u8(..),
         blue: rng.u8(..),
     };
@@ -175,7 +175,6 @@ pub fn generate_nft(this_address: Address, token_id: U256) -> Image<32, 32> {
     let mut image = Image::new(bg_color);
 
     image.draw_gradient(Color::from_hex(0xff0000), Color::from_hex(0x0000ff));
-
     image.draw_line(Cell::new(4, 4), Cell::new(4, 6), fg_color);
     image.draw_line(Cell::new(10, 4), Cell::new(10, 6), fg_color);
     image.draw_ellipse(Cell::new(7, 9), 3, 3, [false, false, true, true], fg_color);

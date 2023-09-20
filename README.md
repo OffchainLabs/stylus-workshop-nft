@@ -90,7 +90,7 @@ In Stylus, execution is 10-100x cheaper. The drawing methods can do large amount
 cargo test print_art -- --nocapture
 ```
 
-<img src=".example.jpeg" height="300">
+<img src=".example.png" height="300">
 
 ## Deploy your NFT
 
