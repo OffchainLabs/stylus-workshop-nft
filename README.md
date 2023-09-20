@@ -87,10 +87,10 @@ You can modify the above in various ways.
 In Stylus, execution is 10-100x cheaper. The drawing methods can do large amounts of work with negligible fees. As a consequence, Stylus NFTs can be highly generative and entirely onchain. In fact, the contract in this repo can even produce PNGs and terminal images on the fly without having to include any offchain data.
 
 ```sh
-$ cargo test print_art -- --nocapture
-
-
+cargo test print_art -- --nocapture
 ```
+
+![](.example.jpeg)
 
 ## Deploy your NFT
 
