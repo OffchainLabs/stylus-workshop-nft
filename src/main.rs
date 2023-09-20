@@ -25,6 +25,7 @@ use stylus_sdk::{alloy_primitives::U256, prelude::*};
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
+/// Configures the NFT data.
 struct StylusWorkshopParams;
 
 impl Erc712Params for StylusWorkshopParams {
@@ -40,6 +41,7 @@ impl Erc712Params for StylusWorkshopParams {
     }
 }
 
+// Here is where one declares storage.
 sol_storage! {
     #[entrypoint]
     struct StylusWorkshopNft {
@@ -48,6 +50,8 @@ sol_storage! {
     }
 }
 
+/// Here is where one would add or override external methods.
+/// For the purposes of this example, though, our NFT just inherits everything.
 #[external]
 #[inherit(Erc712<StylusWorkshopParams>)]
 impl StylusWorkshopNft {}

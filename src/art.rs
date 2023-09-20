@@ -142,17 +142,13 @@ impl<const R: usize, const C: usize> Image<R, C> {
 /// Generates the image for a given NFT token ID
 /// Returns an array of rows of pixels
 /// Every row must be the same length
-pub fn generate_nft(this_address: Address, token_id: U256) -> Image<16, 16> {
+pub fn generate_nft(this_address: Address, token_id: U256) -> Image<32, 32> {
     let mut hasher = FnvHasher::new();
     hasher.update(token_id.as_le_slice());
     hasher.update(this_address.as_slice());
     let mut rng = Rng::with_seed(hasher.output());
 
-    let bg_color = Color {
-        red: 0xe3,
-        green: 0x06,
-        blue: 0x6e,
-    };
+    let bg_color = Color::from_hex(0xe3066e);
     let fg_color = Color {
         red: rng.u8(..80), // don't generate something too red or it'll blend in
         green: rng.u8(..),

@@ -12,6 +12,16 @@ pub struct Color {
     pub blue: u8,
 }
 
+impl Color {
+    pub const fn from_hex(value: usize) -> Self {
+        Self {
+            red: (value >> 16) as u8,
+            green: (value >> 8) as u8,
+            blue: value as u8,
+        }
+    }
+}
+
 /// A grid of pixels `R` rows by `C` columns.
 pub type Pixels<const R: usize, const C: usize> = Box<[[Color; C]; R]>;
 
