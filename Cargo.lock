@@ -741,10 +741,12 @@ dependencies = [
  "alloy-sol-types",
  "base64",
  "crc",
+ "fastrand",
  "flate2",
  "hex",
  "hex-literal",
  "png",
+ "rand",
  "stylus-sdk",
  "wee_alloc",
 ]
