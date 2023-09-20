@@ -747,6 +747,7 @@ dependencies = [
  "hex-literal",
  "png",
  "rand",
+ "ruint",
  "stylus-sdk",
  "wee_alloc",
 ]
